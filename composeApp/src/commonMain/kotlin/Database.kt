@@ -1,92 +1,62 @@
-import androidx.room.Dao
-import androidx.room.Database
-import androidx.room.Entity
-import androidx.room.Insert
-import androidx.room.OnConflictStrategy
-import androidx.room.PrimaryKey
-import androidx.room.Query
-import androidx.room.RoomDatabase
-import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
-import kotlinx.coroutines.DelicateCoroutinesApi
+import io.realm.kotlin.Realm
+import io.realm.kotlin.RealmConfiguration
+import io.realm.kotlin.ext.query
+import io.realm.kotlin.types.RealmObject
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.jetbrains.compose.resources.ExperimentalResourceApi
 import recipes.composeapp.generated.resources.Res
 
-@Database(entities = [Recipe::class], version = 1)
-abstract class AppDatabase : RoomDatabase() {
-    abstract fun recipes(): RecipeDao
+private class MutableRecipe: RealmObject, Recipe {
+    override var id: Int = 0
+    override var title: String = ""
+    override var category: String = ""
+    override var link: String = ""
+    override var servings: Int = 0
+    override var ingredients: String = ""
+    override var steps: String = ""
 }
 
-@Dao
-interface RecipeDao {
-    @Insert(Recipe::class, OnConflictStrategy.REPLACE)
-    suspend fun set(recipes: List<Recipe>)
-
-    @Query("SELECT * FROM Recipe ORDER BY RANDOM() LIMIT :count")
-    suspend fun getRandom(count: Int): List<Recipe>
-
-    @Query("SELECT * FROM Recipe ORDER BY RANDOM() LIMIT 1")
-    suspend fun getRandom(): Recipe?
-
-    @Query("SELECT COUNT(id) FROM Recipe")
-    suspend fun getRecipeCount(): Int
-}
-
-class RecipeRepository(
-    database: AppDatabase
-) {
-    private val recipes = database.recipes()
-
-    suspend fun random(count: Int): List<Recipe> =
-        recipes.getRandom(count)
-
-    suspend fun random(): Recipe? =
-        recipes.getRandom()
-
-    suspend fun count(): Int =
-        recipes.getRecipeCount()
-}
-
-@Entity
-data class Recipe(
-    @PrimaryKey val id: Long,
-    val title: String,
-    val category: String,
-    val link: String,
-    val servings: String,
-    val ingredients: String,
+interface Recipe {
+    val id: Int
+    val title: String
+    val category: String
+    val link: String
+    val servings: Int
+    val ingredients: String
     val steps: String
-)
+}
 
-expect fun getDatabaseBuilder(): RoomDatabase.Builder<AppDatabase>
-
-private val roomDatabase = getDatabaseBuilder()
-    .setDriver(BundledSQLiteDriver())
-    .fallbackToDestructiveMigration(true)
-    .setQueryCoroutineContext(Dispatchers.IO)
-    .build()
-    .also {
-        @OptIn(DelicateCoroutinesApi::class)
-        GlobalScope.launch(Dispatchers.IO) {
-            if(it.recipes().getRecipeCount() == 0) {
-                it.recipes().set(getRecipesFromResources())
+private val realm: Realm by lazy {
+    Realm.open(
+        RealmConfiguration
+            .Builder(schema = setOf(MutableRecipe::class))
+            .initialData {
+                runBlocking(Dispatchers.IO) {
+                    getRecipesFromResources()
+                }.forEach(::copyToRealm)
             }
-        }
+            .build()
+    )
+}
+
+class RecipeRepository(private val realm: Realm) {
+    fun random(count: Int): List<Recipe> {
+        return realm.query<MutableRecipe>().limit(count).find()
     }
+}
 
 object Repository {
-    val recipes = RecipeRepository(roomDatabase)
+    val recipes = RecipeRepository(realm)
 }
 
-private suspend fun getRecipesFromResources(): List<Recipe> = withContext(Dispatchers.IO) {
+private suspend fun getRecipesFromResources(): List<MutableRecipe> = withContext(Dispatchers.IO) {
     @OptIn(ExperimentalResourceApi::class)
     return@withContext Gson().fromJson(
         Res.readBytes("files/recipes.json").decodeToString(),
-        object : TypeToken<List<Recipe>>() {}
+        object : TypeToken<List<MutableRecipe>>() {}
     )
 }

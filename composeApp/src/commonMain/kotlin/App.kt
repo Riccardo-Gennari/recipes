@@ -1,5 +1,7 @@
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ContextualFlowRow
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -11,8 +13,15 @@ import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
 import androidx.compose.foundation.lazy.staggeredgrid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AddCircle
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MaterialTheme.typography
 import androidx.compose.material3.Text
@@ -40,11 +49,26 @@ fun App() {
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun RecipeScreen(
     viewModel: RecipeViewModel = viewModel { RecipeViewModel() }
 ) {
-    Box {
+    Column {
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            viewModel.filterIngredients.forEach {
+                Ingredient(it) {
+                    viewModel.removeIngredientFromFilter(it)
+                }
+            }
+            IconButton(
+                onClick = { TODO() }
+            ) {
+                Icon(Icons.Default.Add, null)
+            }
+        }
         LazyVerticalStaggeredGrid(
             columns = StaggeredGridCells.Adaptive(150.dp),
             modifier = Modifier.fillMaxSize().padding(4.dp)
@@ -66,6 +90,16 @@ fun LoadingDialog() {
             CircularProgressIndicator()
         }
     }
+}
+
+@Composable
+fun Ingredient(name: String, onClick: () -> Unit) {
+    FilterChip(
+        selected = false,
+        label = { Text(name, maxLines = 1) },
+        onClick = onClick,
+        trailingIcon = { Icon(Icons.Default.Delete, null) }
+    )
 }
 
 @Composable
@@ -95,6 +129,12 @@ class RecipeViewModel: ViewModel() {
     var recipes by mutableStateOf(emptyList<Recipe>())
         private set
 
+    var ingredients by mutableStateOf(emptySet<String>())
+        private set
+
+    var filterIngredients by mutableStateOf(emptySet<String>())
+        private set
+
     var isLoading by mutableStateOf(false)
         private set
 
@@ -102,8 +142,17 @@ class RecipeViewModel: ViewModel() {
         viewModelScope.launch {
             whileLoading {
                 recipes = Repository.recipes.random(100)
+                ingredients = emptySet() // TODO
             }
         }
+    }
+
+    fun removeIngredientFromFilter(ingredient: String) {
+        filterIngredients -= ingredient
+    }
+
+    fun addIngredientToFilter(ingredient: String) {
+        filterIngredients += ingredient
     }
 
     private inline fun <T> whileLoading(block: () -> T) {

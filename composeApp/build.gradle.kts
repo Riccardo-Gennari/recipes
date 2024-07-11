@@ -7,12 +7,11 @@ plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.jetbrainsCompose)
     alias(libs.plugins.compose.compiler)
-    alias(libs.plugins.room)
-    alias(libs.plugins.ksp)
+    alias(libs.plugins.realm)
 }
 
 dependencies {
-    ksp(libs.room.compiler)
+    compileOnly(libs.realm)
 }
 
 kotlin {
@@ -34,10 +33,10 @@ kotlin {
             implementation(compose.ui)
             implementation(compose.components.resources)
             implementation(compose.components.uiToolingPreview)
+            implementation(libs.kotlinx.coroutines.core)
             implementation(libs.androidx.lifecycle.viewmodel)
-            implementation(libs.room.runtime)
-            implementation(libs.sqlite.bundled)
             implementation(libs.gson)
+            implementation(libs.realm)
         }
         androidMain.dependencies {
             implementation(compose.preview)
@@ -73,6 +72,7 @@ android {
     buildTypes {
         getByName("release") {
             isMinifyEnabled = false
+            isDebuggable = true
         }
     }
     compileOptions {
@@ -98,8 +98,3 @@ compose.desktop {
         }
     }
 }
-
-room {
-    schemaDirectory("$projectDir/schemas")
-}
-
