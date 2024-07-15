@@ -53,7 +53,11 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.stringResource
 import org.jetbrains.compose.ui.tooling.preview.Preview
+import recipes.composeapp.generated.resources.Res
+import recipes.composeapp.generated.resources.filter_by_ingredients
+import recipes.composeapp.generated.resources.ingredients_for_n_people
 import kotlin.coroutines.CoroutineContext
 
 @Composable
@@ -97,7 +101,7 @@ fun RecipeScreen(
             onSearch = viewModel::updateSearchText,
             active = isActive,
             onActiveChange = { isActive = it },
-            placeholder = { Text("Filtra per ingredienti...") },
+            placeholder = { Text(stringResource(Res.string.filter_by_ingredients)) },
             trailingIcon = {
                 Row {
                     AnimatedVisibility(viewModel.searchText.isNotEmpty()) {
@@ -214,7 +218,7 @@ private fun Recipe(
                     Text(
                         text = recipe.ingredients
                             .map { "${it.key} ${it.value}" }
-                            .joinToString(prefix = "Ingredienti per ${recipe.servings} persone:\n")
+                            .joinToString(prefix = stringResource(Res.string.ingredients_for_n_people, recipe.servings))
                     )
                 }
                 if(recipe.steps.isNotEmpty()) {
